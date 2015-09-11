@@ -3,18 +3,24 @@ package dind
 import (
 	"crypto/tls"
 	"fmt"
+	"io/ioutil"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 
 	"github.com/docker/machine/libmachine/drivers"
 	"github.com/docker/machine/libmachine/mcnflag"
+	"github.com/docker/machine/libmachine/ssh"
 	"github.com/docker/machine/libmachine/state"
 	"github.com/samalba/dockerclient"
 )
 
 type Driver struct {
 	*drivers.BaseDriver
-	Id string
+	Id            string
+	ContainerHost string
 }
 
 func NewDriver(hostName, artifactPath string) Driver {
@@ -56,6 +62,13 @@ func (d *Driver) Create() error {
 		return err
 	}
 
+	u, err := url.Parse(os.Getenv("DOCKER_HOST"))
+	if err != nil {
+		return fmt.Errorf("Error parsing URL from DOCKER_HOST: %s", err)
+	}
+
+	d.ContainerHost = strings.Split(u.Host, ":")[0]
+
 	containerConfig := &dockerclient.ContainerConfig{
 		Image: "nathanleclaire/docker-machine-dind",
 		HostConfig: dockerclient.HostConfig{
@@ -74,6 +87,34 @@ func (d *Driver) Create() error {
 		return err
 	}
 
+	if err := ssh.GenerateSSHKey(d.GetSSHKeyPath()); err != nil {
+		return err
+	}
+
+	f, err := os.Open(d.GetSSHKeyPath() + ".pub")
+	if err != nil {
+		return fmt.Errorf("Error opening pub key file: %s", err)
+	}
+
+	pubKey, err := ioutil.ReadAll(f)
+	if err != nil {
+		return fmt.Errorf("Error reading from pub key file: %s", err)
+	}
+
+	execConfig := &dockerclient.ExecConfig{
+		Cmd:       []string{"printf", fmt.Sprintf("'%s'", strings.TrimSpace(string(pubKey))), ">/root/.ssh/authorized_keys"},
+		Container: d.Id,
+	}
+
+	execId, err := dc.ExecCreate(execConfig)
+	if err != nil {
+		return fmt.Errorf("Error creating exec: %s", err)
+	}
+
+	if err := dc.ExecStart(execId, execConfig); err != nil {
+		return fmt.Errorf("Error starting exec: %s", err)
+	}
+
 	return nil
 }
 
@@ -82,7 +123,7 @@ func (d *Driver) DriverName() string {
 }
 
 func (d *Driver) GetIP() (string, error) {
-	return "", nil
+	return d.ContainerHost, nil
 }
 
 func (d *Driver) GetMachineName() string {
@@ -90,23 +131,42 @@ func (d *Driver) GetMachineName() string {
 }
 
 func (d *Driver) GetSSHHostname() (string, error) {
-	return "", nil
+	return d.ContainerHost, nil
 }
 
-func (d *Driver) GetSSHKeyPath() string {
-	return ""
+func (d *Driver) getExposedPort(containerPort string) (int, error) {
+	dc, err := newDockerClient()
+	if err != nil {
+		return 0, err
+	}
+
+	info, err := dc.InspectContainer(d.Id)
+	if err != nil {
+		return 0, fmt.Errorf("Error inspecting container: %s", err)
+	}
+
+	exposedPort, err := strconv.Atoi(info.NetworkSettings.Ports[fmt.Sprintf("%s/tcp", containerPort)][0].HostPort)
+	if err != nil {
+		return 0, fmt.Errorf("Error parsing host port to int: %s")
+	}
+
+	return exposedPort, nil
 }
 
 func (d *Driver) GetSSHPort() (int, error) {
-	return 0, nil
+	return d.getExposedPort("22")
 }
 
 func (d *Driver) GetSSHUsername() string {
-	return ""
+	return "root"
 }
 
 func (d *Driver) GetURL() (string, error) {
-	return "", nil
+	dockerPort, err := d.getExposedPort("2376")
+	if err != nil {
+		return "", fmt.Errorf("Error trying to get exposed port: %s", err)
+	}
+	return fmt.Sprintf("tcp://%s:%d", d.ContainerHost, dockerPort), nil
 }
 
 func (d *Driver) GetState() (state.State, error) {
@@ -136,7 +196,12 @@ func (d *Driver) PreCreateCheck() error {
 }
 
 func (d *Driver) Remove() error {
-	return nil
+	dc, err := newDockerClient()
+	if err != nil {
+		return err
+	}
+
+	return dc.RemoveContainer(d.Id, true, true)
 }
 
 func (d *Driver) Restart() error {
