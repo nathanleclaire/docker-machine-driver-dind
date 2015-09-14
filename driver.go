@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/docker/machine/libmachine/drivers"
 	"github.com/docker/machine/libmachine/mcnflag"
 	"github.com/docker/machine/libmachine/ssh"
@@ -21,6 +22,9 @@ type Driver struct {
 	*drivers.BaseDriver
 	Id            string
 	ContainerHost string
+	DockerHost    string
+	CertPath      string
+	BeingCreated  bool
 }
 
 func NewDriver(hostName, artifactPath string) Driver {
@@ -32,11 +36,18 @@ func NewDriver(hostName, artifactPath string) Driver {
 	}
 }
 
-func newDockerClient() (*dockerclient.DockerClient, error) {
-	tlsc := &tls.Config{}
-	dockerCertPath := os.Getenv("DOCKER_CERT_PATH")
+func (d *Driver) newDockerClient() (*dockerclient.DockerClient, error) {
+	if d.DockerHost == "" {
+		d.DockerHost = os.Getenv("DOCKER_HOST")
+	}
 
-	cert, err := tls.LoadX509KeyPair(filepath.Join(dockerCertPath, "cert.pem"), filepath.Join(dockerCertPath, "key.pem"))
+	if d.CertPath == "" {
+		d.CertPath = os.Getenv("DOCKER_CERT_PATH")
+	}
+
+	tlsc := &tls.Config{}
+
+	cert, err := tls.LoadX509KeyPair(filepath.Join(d.CertPath, "cert.pem"), filepath.Join(d.CertPath, "key.pem"))
 	if err != nil {
 		return nil, fmt.Errorf("Error loading x509 key pair: %s", err)
 	}
@@ -44,7 +55,7 @@ func newDockerClient() (*dockerclient.DockerClient, error) {
 	tlsc.Certificates = append(tlsc.Certificates, cert)
 	tlsc.InsecureSkipVerify = true
 
-	dc, err := dockerclient.NewDockerClient(os.Getenv("DOCKER_HOST"), tlsc)
+	dc, err := dockerclient.NewDockerClient(d.DockerHost, tlsc)
 	if err != nil {
 		return nil, fmt.Errorf("Error getting Docker Client: %s", err)
 	}
@@ -57,7 +68,9 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 }
 
 func (d *Driver) Create() error {
-	dc, err := newDockerClient()
+	d.BeingCreated = true
+
+	dc, err := d.newDockerClient()
 	if err != nil {
 		return err
 	}
@@ -73,6 +86,7 @@ func (d *Driver) Create() error {
 		Image: "nathanleclaire/docker-machine-dind",
 		HostConfig: dockerclient.HostConfig{
 			PublishAllPorts: true,
+			Privileged:      true,
 		},
 	}
 
@@ -102,9 +116,11 @@ func (d *Driver) Create() error {
 	}
 
 	execConfig := &dockerclient.ExecConfig{
-		Cmd:       []string{"printf", fmt.Sprintf("'%s'", strings.TrimSpace(string(pubKey))), ">/root/.ssh/authorized_keys"},
+		Cmd:       []string{"sh", "-c", fmt.Sprintf("echo %q >/root/.ssh/authorized_keys", strings.TrimSpace(string(pubKey)))},
 		Container: d.Id,
 	}
+
+	spew.Dump(execConfig)
 
 	execId, err := dc.ExecCreate(execConfig)
 	if err != nil {
@@ -135,7 +151,7 @@ func (d *Driver) GetSSHHostname() (string, error) {
 }
 
 func (d *Driver) getExposedPort(containerPort string) (int, error) {
-	dc, err := newDockerClient()
+	dc, err := d.newDockerClient()
 	if err != nil {
 		return 0, err
 	}
@@ -162,6 +178,11 @@ func (d *Driver) GetSSHUsername() string {
 }
 
 func (d *Driver) GetURL() (string, error) {
+	if d.BeingCreated {
+		// HACK: First time on creation, trick provisioning into using 2376 for the URL.
+		d.BeingCreated = false
+		return fmt.Sprintf("tcp://%s:2376", d.ContainerHost), nil
+	}
 	dockerPort, err := d.getExposedPort("2376")
 	if err != nil {
 		return "", fmt.Errorf("Error trying to get exposed port: %s", err)
@@ -170,7 +191,7 @@ func (d *Driver) GetURL() (string, error) {
 }
 
 func (d *Driver) GetState() (state.State, error) {
-	dc, err := newDockerClient()
+	dc, err := d.newDockerClient()
 	if err != nil {
 		return state.Error, err
 	}
@@ -196,7 +217,7 @@ func (d *Driver) PreCreateCheck() error {
 }
 
 func (d *Driver) Remove() error {
-	dc, err := newDockerClient()
+	dc, err := d.newDockerClient()
 	if err != nil {
 		return err
 	}
@@ -208,12 +229,13 @@ func (d *Driver) Restart() error {
 	return nil
 }
 
-func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {
+func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
+	spew.Dump(opts)
 	return nil
 }
 
 func (d *Driver) Start() error {
-	dc, err := newDockerClient()
+	dc, err := d.newDockerClient()
 	if err != nil {
 		return err
 	}
