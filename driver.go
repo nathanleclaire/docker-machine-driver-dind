@@ -22,6 +22,7 @@ type Driver struct {
 	*drivers.BaseDriver
 	Id            string
 	ContainerHost string
+	DindImage     string
 	DockerHost    string
 	CertPath      string
 	BeingCreated  bool
@@ -64,7 +65,13 @@ func (d *Driver) newDockerClient() (*dockerclient.DockerClient, error) {
 }
 
 func (d *Driver) GetCreateFlags() []mcnflag.Flag {
-	return []mcnflag.Flag{}
+	return []mcnflag.Flag{
+		mcnflag.Flag{
+			Name:  "dind-image",
+			Usage: "Image to run for the Docker-in-Docker stack.",
+			Value: "nathanleclaire/docker-machine-dind",
+		},
+	}
 }
 
 func (d *Driver) Create() error {
@@ -83,7 +90,7 @@ func (d *Driver) Create() error {
 	d.ContainerHost = strings.Split(u.Host, ":")[0]
 
 	containerConfig := &dockerclient.ContainerConfig{
-		Image: "nathanleclaire/docker-machine-dind",
+		Image: d.DindImage,
 		HostConfig: dockerclient.HostConfig{
 			PublishAllPorts: true,
 			Privileged:      true,
@@ -183,10 +190,21 @@ func (d *Driver) GetURL() (string, error) {
 		d.BeingCreated = false
 		return fmt.Sprintf("tcp://%s:2376", d.ContainerHost), nil
 	}
+
+	s, err := d.GetState()
+	if err != nil {
+		return "", fmt.Errorf("Error getting state: %s", err)
+	}
+
+	if s != state.Running {
+		return "", nil
+	}
+
 	dockerPort, err := d.getExposedPort("2376")
 	if err != nil {
 		return "", fmt.Errorf("Error trying to get exposed port: %s", err)
 	}
+
 	return fmt.Sprintf("tcp://%s:%d", d.ContainerHost, dockerPort), nil
 }
 
@@ -200,6 +218,8 @@ func (d *Driver) GetState() (state.State, error) {
 	if err != nil {
 		return state.Error, fmt.Errorf("Error inspecting container: %s", err)
 	}
+
+	spew.Dump(info)
 
 	if info.State.Running {
 		return state.Running, nil
@@ -231,6 +251,7 @@ func (d *Driver) Restart() error {
 
 func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 	spew.Dump(opts)
+	d.DindImage = opts.String("dind-image")
 	return nil
 }
 
@@ -244,5 +265,10 @@ func (d *Driver) Start() error {
 }
 
 func (d *Driver) Stop() error {
-	return nil
+	dc, err := d.newDockerClient()
+	if err != nil {
+		return err
+	}
+
+	return dc.StopContainer(d.Id, 10)
 }
