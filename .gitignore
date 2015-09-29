@@ -1,2 +1,2 @@
 *.swp
-docker-machine-dind
+docker-machine-dind*

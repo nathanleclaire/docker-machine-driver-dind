@@ -1,0 +1,46 @@
+{
+	"ImportPath": "github.com/nathanleclaire/docker-machine-dind",
+	"GoVersion": "go1.5",
+	"Packages": [
+		"./..."
+	],
+	"Deps": [
+		{
+			"ImportPath": "github.com/davecgh/go-spew/spew",
+			"Rev": "2df174808ee097f90d259e432cc04442cf60be21"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/pkg/term",
+			"Comment": "v1.5.0",
+			"Rev": "a8a31eff10544860d2188dddabdee4d727545796"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/pkg/units",
+			"Comment": "v1.5.0",
+			"Rev": "a8a31eff10544860d2188dddabdee4d727545796"
+		},
+		{
+			"ImportPath": "github.com/docker/machine/commands/mcndirs",
+			"Comment": "v0.3.0-rc1-317-gfa906bf",
+			"Rev": "fa906bfcf1420b9776c11eb7b0a4c111ec72bc8a"
+		},
+		{
+			"ImportPath": "github.com/docker/machine/drivers/none",
+			"Comment": "v0.3.0-rc1-317-gfa906bf",
+			"Rev": "fa906bfcf1420b9776c11eb7b0a4c111ec72bc8a"
+		},
+		{
+			"ImportPath": "github.com/docker/machine/libmachine",
+			"Comment": "v0.3.0-rc1-317-gfa906bf",
+			"Rev": "fa906bfcf1420b9776c11eb7b0a4c111ec72bc8a"
+		},
+		{
+			"ImportPath": "github.com/samalba/dockerclient",
+			"Rev": "cfb489c624b635251a93e74e1e90eb0959c5367f"
+		},
+		{
+			"ImportPath": "golang.org/x/crypto/ssh",
+			"Rev": "1fbbd62cfec66bd39d91e97749579579d4d3037e"
+		}
+	]
+}
