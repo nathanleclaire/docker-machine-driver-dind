@@ -28,11 +28,11 @@ type Driver struct {
 	BeingCreated  bool
 }
 
-func NewDriver(hostName, artifactPath string) Driver {
+func NewDriver(hostName, storePath string) Driver {
 	return Driver{
 		BaseDriver: &drivers.BaseDriver{
-			MachineName:  hostName,
-			ArtifactPath: artifactPath,
+			MachineName: hostName,
+			StorePath:   storePath,
 		},
 	}
 }
