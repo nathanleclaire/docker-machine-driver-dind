@@ -38,23 +38,17 @@ func NewDriver(hostName, storePath string) Driver {
 }
 
 func (d *Driver) newDockerClient() (*dockerclient.DockerClient, error) {
-	if d.DockerHost == "" {
-		d.DockerHost = os.Getenv("DOCKER_HOST")
-	}
-
-	if d.CertPath == "" {
-		d.CertPath = os.Getenv("DOCKER_CERT_PATH")
-	}
-
 	tlsc := &tls.Config{}
 
-	cert, err := tls.LoadX509KeyPair(filepath.Join(d.CertPath, "cert.pem"), filepath.Join(d.CertPath, "key.pem"))
-	if err != nil {
-		return nil, fmt.Errorf("Error loading x509 key pair: %s", err)
-	}
+	if d.CertPath != "" {
+		cert, err := tls.LoadX509KeyPair(filepath.Join(d.CertPath, "cert.pem"), filepath.Join(d.CertPath, "key.pem"))
+		if err != nil {
+			return nil, fmt.Errorf("Error loading x509 key pair: %s", err)
+		}
 
-	tlsc.Certificates = append(tlsc.Certificates, cert)
-	tlsc.InsecureSkipVerify = true
+		tlsc.Certificates = append(tlsc.Certificates, cert)
+		tlsc.InsecureSkipVerify = true
+	}
 
 	dc, err := dockerclient.NewDockerClient(d.DockerHost, tlsc)
 	if err != nil {
@@ -66,10 +60,22 @@ func (d *Driver) newDockerClient() (*dockerclient.DockerClient, error) {
 
 func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 	return []mcnflag.Flag{
-		mcnflag.Flag{
+		mcnflag.StringFlag{
 			Name:  "dind-image",
 			Usage: "Image to run for the Docker-in-Docker stack.",
 			Value: "nathanleclaire/docker-machine-dind",
+		},
+		mcnflag.StringFlag{
+			Name:   "dind-host",
+			Usage:  "URL of Docker host to use for the dind container.",
+			Value:  "unix:///var/run/docker.sock",
+			EnvVar: "DOCKER_HOST",
+		},
+		mcnflag.StringFlag{
+			Name:   "dind-cert-path",
+			Usage:  "Cert path for the docker host in usage for the dind container.",
+			EnvVar: "DOCKER_CERT_PATH",
+			Value:  "",
 		},
 	}
 }
@@ -252,6 +258,8 @@ func (d *Driver) Restart() error {
 func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 	spew.Dump(opts)
 	d.DindImage = opts.String("dind-image")
+	d.DockerHost = opts.String("dind-host")
+	d.CertPath = opts.String("dind-cert-path")
 	return nil
 }
 
