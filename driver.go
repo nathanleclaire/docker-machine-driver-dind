@@ -18,6 +18,10 @@ import (
 	"github.com/samalba/dockerclient"
 )
 
+const (
+	defaultDockerHost = "unix:///var/run/docker.sock"
+)
+
 type Driver struct {
 	*drivers.BaseDriver
 	Id            string
@@ -68,7 +72,7 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 		mcnflag.StringFlag{
 			Name:   "dind-host",
 			Usage:  "URL of Docker host to use for the dind container.",
-			Value:  "unix:///var/run/docker.sock",
+			Value:  defaultDockerHost,
 			EnvVar: "DOCKER_HOST",
 		},
 		mcnflag.StringFlag{
@@ -93,7 +97,11 @@ func (d *Driver) Create() error {
 		return fmt.Errorf("Error parsing URL from DOCKER_HOST: %s", err)
 	}
 
-	d.ContainerHost = strings.Split(u.Host, ":")[0]
+	if d.DockerHost == defaultDockerHost {
+		d.ContainerHost = "localhost"
+	} else {
+		d.ContainerHost = strings.Split(u.Host, ":")[0]
+	}
 
 	containerConfig := &dockerclient.ContainerConfig{
 		Image: d.DindImage,
