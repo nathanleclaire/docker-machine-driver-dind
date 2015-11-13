@@ -160,6 +160,14 @@ func (d *Driver) DriverName() string {
 }
 
 func (d *Driver) GetIP() (string, error) {
+	if d.DockerHost == "unix:///var/run/docker.sock" {
+		info, err := d.getContainerInfo()
+		if err != nil {
+			return "", err
+		}
+
+		return info.NetworkSettings.IPAddress, nil
+	}
 	return d.ContainerHost, nil
 }
 
@@ -168,18 +176,30 @@ func (d *Driver) GetMachineName() string {
 }
 
 func (d *Driver) GetSSHHostname() (string, error) {
+	if d.DockerHost == "unix:///var/run/docker.sock" {
+		return d.GetIP()
+	}
 	return d.ContainerHost, nil
 }
 
-func (d *Driver) getExposedPort(containerPort string) (int, error) {
+func (d *Driver) getContainerInfo() (*dockerclient.ContainerInfo, error) {
 	dc, err := d.newDockerClient()
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
 	info, err := dc.InspectContainer(d.Id)
 	if err != nil {
-		return 0, fmt.Errorf("Error inspecting container: %s", err)
+		return nil, fmt.Errorf("Error inspecting container: %s", err)
+	}
+
+	return info, nil
+}
+
+func (d *Driver) getExposedPort(containerPort string) (int, error) {
+	info, err := d.getContainerInfo()
+	if err != nil {
+		return 0, err
 	}
 
 	exposedPort, err := strconv.Atoi(info.NetworkSettings.Ports[fmt.Sprintf("%s/tcp", containerPort)][0].HostPort)
@@ -191,6 +211,9 @@ func (d *Driver) getExposedPort(containerPort string) (int, error) {
 }
 
 func (d *Driver) GetSSHPort() (int, error) {
+	if d.DockerHost == "unix:///var/run/docker.sock" {
+		return 22, nil
+	}
 	return d.getExposedPort("22")
 }
 
@@ -199,27 +222,35 @@ func (d *Driver) GetSSHUsername() string {
 }
 
 func (d *Driver) GetURL() (string, error) {
-	if d.BeingCreated {
-		// HACK: First time on creation, trick provisioning into using 2376 for the URL.
-		d.BeingCreated = false
-		return fmt.Sprintf("tcp://%s:2376", d.ContainerHost), nil
-	}
+	if d.DockerHost == "unix:///var/run/docker.sock" {
+		ip, err := d.GetIP()
+		if err != nil {
+			return "", err
+		}
+		return fmt.Sprintf("tcp://%s:2376", ip), nil
+	} else {
+		if d.BeingCreated {
+			// HACK: First time on creation, trick provisioning into using 2376 for the URL.
+			d.BeingCreated = false
+			return fmt.Sprintf("tcp://%s:2376", d.ContainerHost), nil
+		}
 
-	s, err := d.GetState()
-	if err != nil {
-		return "", fmt.Errorf("Error getting state: %s", err)
-	}
+		s, err := d.GetState()
+		if err != nil {
+			return "", fmt.Errorf("Error getting state: %s", err)
+		}
 
-	if s != state.Running {
-		return "", nil
-	}
+		if s != state.Running {
+			return "", nil
+		}
 
-	dockerPort, err := d.getExposedPort("2376")
-	if err != nil {
-		return "", fmt.Errorf("Error trying to get exposed port: %s", err)
-	}
+		dockerPort, err := d.getExposedPort("2376")
+		if err != nil {
+			return "", fmt.Errorf("Error trying to get exposed port: %s", err)
+		}
 
-	return fmt.Sprintf("tcp://%s:%d", d.ContainerHost, dockerPort), nil
+		return fmt.Sprintf("tcp://%s:%d", d.ContainerHost, dockerPort), nil
+	}
 }
 
 func (d *Driver) GetState() (state.State, error) {
