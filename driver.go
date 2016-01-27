@@ -274,7 +274,7 @@ func (d *Driver) GetState() (state.State, error) {
 }
 
 func (d *Driver) Kill() error {
-	return nil
+	return d.Stop()
 }
 
 func (d *Driver) PreCreateCheck() error {
