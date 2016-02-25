@@ -1,6 +1,6 @@
 {
 	"ImportPath": "github.com/nathanleclaire/docker-machine-driver-dind",
-	"GoVersion": "go1.5.1",
+	"GoVersion": "go1.6",
 	"Deps": [
 		{
 			"ImportPath": "github.com/davecgh/go-spew/spew",
@@ -18,33 +18,33 @@
 		},
 		{
 			"ImportPath": "github.com/docker/machine/libmachine/drivers",
-			"Comment": "v0.5.0-22-g6be950f",
-			"Rev": "6be950f1c0541ae269731aca02972acb2d537645"
+			"Comment": "v0.6.0-rc4-76-g8046e13",
+			"Rev": "8046e13683f6c40cfa55ae106bba5f4f4d87f7ea"
 		},
 		{
 			"ImportPath": "github.com/docker/machine/libmachine/log",
-			"Comment": "v0.5.0-22-g6be950f",
-			"Rev": "6be950f1c0541ae269731aca02972acb2d537645"
+			"Comment": "v0.6.0-rc4-76-g8046e13",
+			"Rev": "8046e13683f6c40cfa55ae106bba5f4f4d87f7ea"
 		},
 		{
 			"ImportPath": "github.com/docker/machine/libmachine/mcnflag",
-			"Comment": "v0.5.0-22-g6be950f",
-			"Rev": "6be950f1c0541ae269731aca02972acb2d537645"
+			"Comment": "v0.6.0-rc4-76-g8046e13",
+			"Rev": "8046e13683f6c40cfa55ae106bba5f4f4d87f7ea"
 		},
 		{
 			"ImportPath": "github.com/docker/machine/libmachine/mcnutils",
-			"Comment": "v0.5.0-22-g6be950f",
-			"Rev": "6be950f1c0541ae269731aca02972acb2d537645"
+			"Comment": "v0.6.0-rc4-76-g8046e13",
+			"Rev": "8046e13683f6c40cfa55ae106bba5f4f4d87f7ea"
 		},
 		{
 			"ImportPath": "github.com/docker/machine/libmachine/ssh",
-			"Comment": "v0.5.0-22-g6be950f",
-			"Rev": "6be950f1c0541ae269731aca02972acb2d537645"
+			"Comment": "v0.6.0-rc4-76-g8046e13",
+			"Rev": "8046e13683f6c40cfa55ae106bba5f4f4d87f7ea"
 		},
 		{
 			"ImportPath": "github.com/docker/machine/libmachine/state",
-			"Comment": "v0.5.0-22-g6be950f",
-			"Rev": "6be950f1c0541ae269731aca02972acb2d537645"
+			"Comment": "v0.6.0-rc4-76-g8046e13",
+			"Rev": "8046e13683f6c40cfa55ae106bba5f4f4d87f7ea"
 		},
 		{
 			"ImportPath": "github.com/samalba/dockerclient",
