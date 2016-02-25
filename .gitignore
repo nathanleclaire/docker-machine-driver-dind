@@ -1,2 +1,3 @@
 *.swp
 docker-machine-driver-dind*
+/vendor/
