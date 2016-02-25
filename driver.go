@@ -41,6 +41,10 @@ func NewDriver(hostName, storePath string) Driver {
 	}
 }
 
+func dump(infos ...interface{}) {
+	spew.Fdump(os.Stderr, infos)
+}
+
 func (d *Driver) newDockerClient() (*dockerclient.DockerClient, error) {
 	tlsc := &tls.Config{}
 
@@ -141,7 +145,7 @@ func (d *Driver) Create() error {
 		Container: d.Id,
 	}
 
-	spew.Dump(execConfig)
+	dump(execConfig)
 
 	execId, err := dc.ExecCreate(execConfig)
 	if err != nil {
@@ -264,7 +268,7 @@ func (d *Driver) GetState() (state.State, error) {
 		return state.Error, fmt.Errorf("Error inspecting container: %s", err)
 	}
 
-	spew.Dump(info)
+	dump(info)
 
 	if info.State.Running {
 		return state.Running, nil
@@ -295,7 +299,7 @@ func (d *Driver) Restart() error {
 }
 
 func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
-	spew.Dump(opts)
+	dump(opts)
 	d.DindImage = opts.String("dind-image")
 	d.DockerHost = opts.String("dind-host")
 	d.CertPath = opts.String("dind-cert-path")
