@@ -1,7 +1,10 @@
 # Usage
 
 To build and install, make sure you have a Go 1.6 environment and Docker Machine
-greater than or equal to 0.5.1.  Then, just run:
+greater than or equal to 0.5.1. Currently, a `godep restore` is also needed if
+the deps do not resolve correctly for you.
+
+Then, just run:
 
 ```
 $ make && make install
